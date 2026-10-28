@@ -69,13 +69,22 @@ CLI: `game-modules list|add <homepage>`, `users list`, `users roles add|remove <
 
 ```bash
 gradle release
-# -> build/dist/boardgame-launcher-<v>-desktop.zip   (installDist, needs a JRE on the target)
-# -> build/dist/boardgame-launcher-<v>.apk           (unsigned release APK)
+# -> build/dist/boardgame-launcher-<v>.jar           single executable jar (all deps, merged services)
+# -> build/dist/boardgame-launcher-<v>-desktop.zip   installDist (needs a JRE on the target)
+# -> build/dist/boardgame-launcher-<v>.apk           unsigned release APK
 ```
 
+The single jar is the quickest way to run a release (Java 11+):
+
+```bash
+java -jar boardgame-launcher-0.1.0.jar
+```
+
+It contains the launcher, host, shared KMP (jvm target), API and all runtime dependencies; only the
+core/game plugin jars are external (resolved from `<DATA_DIR>/core/<v>/` or downloaded).
+
 The Android release APK embeds the dual-format core/CAH jars and both fronts, d8-dexed by the
-`android-app` build. Signing and `jpackage` app-images are still future work; the desktop zip is
-runnable with `launcher/bin/desktop`.
+`android-app` build. APK signing and `jpackage` app-images are still future work.
 
 Consuming a release: unzip the core asset into `<DATA_DIR>/core/<version>/` and a game asset into
 `<DATA_DIR>/games-modules/<name>/`, then start without `CORE_JAR` — `CoreResolver` picks it up.

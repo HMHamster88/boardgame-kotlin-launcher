@@ -2,6 +2,7 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
     application
+    id("com.gradleup.shadow")
 }
 
 kotlin {
@@ -25,4 +26,19 @@ dependencies {
 application {
     mainClass.set("boardgame.launcher.desktop.MainKt")
     applicationDefaultJvmArgs = listOf("-Dfile.encoding=UTF-8")
+}
+
+/**
+ * Single executable jar: launcher + host + shared + API + runtime dependencies, service files merged.
+ * Run with `java -jar boardgame-launcher-<version>.jar`.
+ */
+tasks.shadowJar {
+    archiveBaseName.set("boardgame-launcher")
+    archiveClassifier.set("")
+    archiveVersion.set(project.version.toString())
+    mergeServiceFiles()
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+    manifest {
+        attributes["Main-Class"] = "boardgame.launcher.desktop.MainKt"
+    }
 }

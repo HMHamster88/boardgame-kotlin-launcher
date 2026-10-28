@@ -5,6 +5,7 @@ plugins {
     kotlin("plugin.serialization") version "2.1.21" apply false
     id("com.android.library") version "8.7.3" apply false
     id("com.android.application") version "8.7.3" apply false
+    id("com.gradleup.shadow") version "8.3.6" apply false
 }
 
 allprojects {
@@ -38,8 +39,19 @@ val androidApk = tasks.register<Copy>("androidApk") {
     rename { "boardgame-launcher-${version}.apk" }
 }
 
+/** Single executable jar (all runtime dependencies, Main-Class set). */
+val singleJar = tasks.register<Copy>("singleJar") {
+    group = "release"
+    description = "Copies the executable launcher jar to build/dist"
+    dependsOn(":desktop:shadowJar")
+    from(project(":desktop").layout.buildDirectory.dir("libs")) {
+        include("boardgame-launcher-*.jar")
+    }
+    into(releaseDist)
+}
+
 tasks.register("release") {
     group = "release"
     description = "Builds all launcher release artifacts"
-    dependsOn(desktopBundle, androidApk)
+    dependsOn(desktopBundle, androidApk, singleJar)
 }
