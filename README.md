@@ -89,6 +89,22 @@ The Android release APK embeds the dual-format core/CAH jars and both fronts, d8
 Consuming a release: unzip the core asset into `<DATA_DIR>/core/<version>/` and a game asset into
 `<DATA_DIR>/games-modules/<name>/`, then start without `CORE_JAR` — `CoreResolver` picks it up.
 
+## Testing updates locally
+
+Use the fake GitHub server in the workspace (`tools/fake-github.mjs`, documented in
+`tools/fake-github.md`):
+
+```bash
+node ../../tools/fake-github.mjs --port 8090 \
+  --core ../../core/back/build/dist/boardgame-core-0.1.0.zip --core-version 0.2.0 \
+  --game cah=../../cah/back/build/dist/cah.zip --game-version cah=0.2.0
+
+CORE_HOMEPAGE=http://127.0.0.1:8090/repos/core CHECK_FOR_UPDATES=true \
+  java -jar build/dist/boardgame-launcher-0.1.0.jar
+```
+
+Game modules: `game-modules add http://127.0.0.1:8090/repos/cah` from the launcher CLI.
+
 The end-to-end check drives the captured 31-step protocol scenario (requires the workspace `tools/`):
 
 ```bash
