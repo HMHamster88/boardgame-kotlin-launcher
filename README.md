@@ -7,11 +7,11 @@ Node.js runtime on the device.
 ## Layout
 
 ```
-shared/      :launcher-shared   KMP (jvm + androidTarget): manifest/update, download, verify, install
-host/        :host              KMP (jvm + android): Ktor CIO server, document store, plugin loading
-desktop/     :launcher-desktop  JVM app: CLI, process spawn, jpackage/jlink
-androidApp/  :android-app       AGP app: WebView + foreground service
-spike/                          Phase-1 spike (separate Gradle build, not part of the app)
+shared/      :shared        KMP (jvm + androidTarget): update check, download, verify, install
+host/        :host          KMP (jvm + android): Ktor CIO server, document store, plugin loading
+desktop/     :desktop       JVM app: CLI, process spawn, jpackage/jlink
+androidApp/  :android-app   AGP app: WebView + foreground service
+spike/                      Phase-1 spike (separate Gradle build, not part of the app)
 ```
 
 ## Status
