@@ -38,28 +38,25 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import java.io.File
+import java.net.HttpURLConnection
 import java.net.Inet4Address
 import java.net.NetworkInterface
-import java.net.URI
-import java.net.URLClassLoader
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
-import java.util.ServiceLoader
+import java.net.URL
 
 /**
- * Desktop platform host: Ktor server, document store, plugin classloaders and console.
- * Android will implement the same [HostServices] surface (DexClassLoader + Android paths).
+ * Platform host: Ktor server, document store, plugin classloading and console.
+ * Runs on the desktop launcher and inside the Android app; only the [PluginLoader] differs.
  */
 class LauncherHost(
     val dataDir: File,
     val port: Int,
-    private val frontDir: File
+    private val frontDir: File,
+    private val pluginLoader: PluginLoader = UrlPluginLoader()
 ) : HostServices {
 
     override val platform: PlatformInfo = PlatformInfo(PlatformInfo.DESKTOP, "0.1.0", dataDir)
     override val storage: Storage = DocumentStore(File(dataDir, "db"))
-    override val http: HostHttp = JdkHttp()
+    override val http: HostHttp = UrlConnectionHttp()
     override val console: HostConsole = SystemConsole()
 
     private var server: EmbeddedServer<*, *>? = null
@@ -120,14 +117,8 @@ class LauncherHost(
         server?.stop(0, 1500)
     }
 
-    override fun <T : Any> loadPlugin(file: File, service: Class<T>, parent: ClassLoader?): T {
-        val loader = URLClassLoader(arrayOf(file.toURI().toURL()), parent ?: javaClass.classLoader)
-        val iterator = ServiceLoader.load(service, loader).iterator()
-        if (!iterator.hasNext()) {
-            throw IllegalStateException("No ${service.simpleName} service in ${file.name}")
-        }
-        return iterator.next()
-    }
+    override fun <T : Any> loadPlugin(file: File, service: Class<T>, parent: ClassLoader?): T =
+        pluginLoader.load(file, service, parent)
 
     private fun serverInfo(): JsonObject = buildJsonObject {
         val publicUrl = System.getenv("PUBLIC_URL")?.trim()?.takeIf { it.isNotEmpty() }
@@ -204,23 +195,37 @@ class LauncherHost(
         }
     }
 
-    private class JdkHttp : HostHttp {
-        private val client: HttpClient = HttpClient.newBuilder()
-            .followRedirects(HttpClient.Redirect.NORMAL)
-            .build()
-
+    private class UrlConnectionHttp : HostHttp {
         override suspend fun getText(url: String): String? =
             getBytes(url)?.toString(Charsets.UTF_8)
 
         override suspend fun getBytes(url: String): ByteArray? = withContext(Dispatchers.IO) {
-            runCatching {
-                val request = HttpRequest.newBuilder(URI.create(url))
-                    .header("User-Agent", "boardgame-kotlin")
-                    .GET()
-                    .build()
-                val response = client.send(request, HttpResponse.BodyHandlers.ofByteArray())
-                if (response.statusCode() in 200..299) response.body() else null
-            }.getOrNull()
+            try {
+                var current = URL(url)
+                repeat(6) {
+                    val connection = current.openConnection() as HttpURLConnection
+                    connection.connectTimeout = 15_000
+                    connection.readTimeout = 30_000
+                    connection.instanceFollowRedirects = true
+                    connection.setRequestProperty("User-Agent", "boardgame-kotlin")
+                    try {
+                        when (val code = connection.responseCode) {
+                            in 200..299 -> return@withContext connection.inputStream.use { it.readBytes() }
+                            in 300..399 -> {
+                                val location = connection.getHeaderField("Location")
+                                    ?: return@withContext null
+                                current = URL(current, location)
+                            }
+                            else -> return@withContext null
+                        }
+                    } finally {
+                        connection.disconnect()
+                    }
+                }
+                null
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 

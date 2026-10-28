@@ -1,5 +1,6 @@
 pluginManagement {
     repositories {
+        google()
         mavenCentral()
         gradlePluginPortal()
     }
@@ -7,6 +8,7 @@ pluginManagement {
 
 dependencyResolutionManagement {
     repositories {
+        google()
         mavenCentral()
     }
 }
@@ -19,4 +21,4 @@ includeBuild("../core") {
     }
 }
 
-include(":host", ":desktop")
+include(":shared", ":host", ":desktop", ":android-app")
