@@ -16,8 +16,39 @@ spike/                      Phase-1 spike (separate Gradle build, not part of th
 
 ## Status
 
-Scaffold: `spike/` moved here (desktop + API 37 emulator checks are green). The app modules are not
-created yet.
+Implemented:
+
+- `host/` — `LauncherHost`: Ktor CIO server (`/ws`, `/server-info`, static fronts), file-backed
+  document store, `URLClassLoader`/`ServiceLoader` plugin loading, desktop console.
+- `desktop/` — console launcher (`DATA_DIR`, `PORT`, `CORE_JAR`, `FRONT_DIR`, `NO_CLI`).
+- `spike/` — the phase-1 plugin/dex/Ktor spike.
+
+Verified: end-to-end 31-step protocol scenario (lobby, join, start, full CAH round, ObjectSync
+write-back, backup, reconnect, kick, bots) against the core + CAH modules.
+
+Not implemented yet: `shared/` (KMP update/download/install), `androidApp/`, jpackage, CLI admin
+commands.
+
+## Run (development)
+
+```bash
+# core and game plugin jars
+gradle -p ../core :back:jar
+gradle -p ../cah :back:jar
+
+# data dir with the game module
+mkdir -p "$DATA_DIR/games-modules/cah/back"
+cp ../cah/back/build/libs/back-0.1.0.jar "$DATA_DIR/games-modules/cah/back/cah-0.1.0.jar"
+
+DATA_DIR=... CORE_JAR=../core/back/build/libs/back-0.1.0.jar gradle :desktop:run
+```
+
+The end-to-end check drives the captured 31-step protocol scenario (requires the workspace `tools/`):
+
+```bash
+NO_CLI=1 DATA_DIR=... CORE_JAR=... PORT=8124 java -cp "desktop/build/install/desktop/lib/*" boardgame.launcher.desktop.MainKt
+node ../../tools/e2e-kotlin.mjs --port 8124
+```
 
 ## Notes
 
