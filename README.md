@@ -65,6 +65,21 @@ adb shell am start -n boardgame.launcher.android/.MainActivity
 Desktop env: `DATA_DIR`, `PORT`, `CORE_JAR`, `CORE_HOMEPAGE`, `CHECK_FOR_UPDATES`, `FRONT_DIR`, `NO_CLI`.
 CLI: `game-modules list|add <homepage>`, `users list`, `users roles add|remove <userId> <role>`, `help`, `exit`.
 
+## Release packaging
+
+```bash
+gradle release
+# -> build/dist/boardgame-launcher-<v>-desktop.zip   (installDist, needs a JRE on the target)
+# -> build/dist/boardgame-launcher-<v>.apk           (unsigned release APK)
+```
+
+The Android release APK embeds the dual-format core/CAH jars and both fronts, d8-dexed by the
+`android-app` build. Signing and `jpackage` app-images are still future work; the desktop zip is
+runnable with `launcher/bin/desktop`.
+
+Consuming a release: unzip the core asset into `<DATA_DIR>/core/<version>/` and a game asset into
+`<DATA_DIR>/games-modules/<name>/`, then start without `CORE_JAR` — `CoreResolver` picks it up.
+
 The end-to-end check drives the captured 31-step protocol scenario (requires the workspace `tools/`):
 
 ```bash

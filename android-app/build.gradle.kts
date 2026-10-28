@@ -138,6 +138,10 @@ val dexCah = registerDexTask(
 
 android.sourceSets.getByName("main").assets.srcDir(generatedAssets)
 
-tasks.matching { it.name == "mergeDebugAssets" || it.name == "mergeReleaseAssets" }.configureEach {
+// Everything that reads assets (merge, lint, bundle) must wait for the generated asset tasks.
+tasks.matching {
+    it.name.contains("Assets") || it.name.contains("Lint") ||
+        it.name.contains("Bundle") || it.name.contains("Package")
+}.configureEach {
     dependsOn(copyCoreFront, copyCahFront, dexCore, dexCah)
 }
