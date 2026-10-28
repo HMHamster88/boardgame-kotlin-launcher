@@ -37,11 +37,10 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import boardgame.launcher.update.UrlConnectionHttp
 import java.io.File
-import java.net.HttpURLConnection
 import java.net.Inet4Address
 import java.net.NetworkInterface
-import java.net.URL
 
 /**
  * Platform host: Ktor server, document store, plugin classloading and console.
@@ -56,11 +55,16 @@ class LauncherHost(
 
     override val platform: PlatformInfo = PlatformInfo(PlatformInfo.DESKTOP, "0.1.0", dataDir)
     override val storage: Storage = DocumentStore(File(dataDir, "db"))
-    override val http: HostHttp = UrlConnectionHttp()
+    override val http: HostHttp = SharedHttp()
     override val console: HostConsole = SystemConsole()
 
     private var server: EmbeddedServer<*, *>? = null
-    private lateinit var core: GameCore
+    lateinit var core: GameCore
+        private set
+
+    fun gameModules() = core.gameModules()
+
+    suspend fun installGameModule(homepage: String) = core.installGameModule(homepage)
 
     fun start(coreJar: File) {
         val module = loadPlugin(coreJar, CoreModule::class.java)
@@ -195,38 +199,11 @@ class LauncherHost(
         }
     }
 
-    private class UrlConnectionHttp : HostHttp {
-        override suspend fun getText(url: String): String? =
-            getBytes(url)?.toString(Charsets.UTF_8)
+    private class SharedHttp : HostHttp {
+        private val client = UrlConnectionHttp()
 
-        override suspend fun getBytes(url: String): ByteArray? = withContext(Dispatchers.IO) {
-            try {
-                var current = URL(url)
-                repeat(6) {
-                    val connection = current.openConnection() as HttpURLConnection
-                    connection.connectTimeout = 15_000
-                    connection.readTimeout = 30_000
-                    connection.instanceFollowRedirects = true
-                    connection.setRequestProperty("User-Agent", "boardgame-kotlin")
-                    try {
-                        when (val code = connection.responseCode) {
-                            in 200..299 -> return@withContext connection.inputStream.use { it.readBytes() }
-                            in 300..399 -> {
-                                val location = connection.getHeaderField("Location")
-                                    ?: return@withContext null
-                                current = URL(current, location)
-                            }
-                            else -> return@withContext null
-                        }
-                    } finally {
-                        connection.disconnect()
-                    }
-                }
-                null
-            } catch (_: Exception) {
-                null
-            }
-        }
+        override suspend fun getText(url: String): String? = client.getText(url)
+        override suspend fun getBytes(url: String): ByteArray? = client.getBytes(url)
     }
 
     private class SystemConsole : HostConsole {

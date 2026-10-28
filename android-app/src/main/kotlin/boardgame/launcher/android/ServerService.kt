@@ -40,7 +40,7 @@ class ServerService : Service() {
         scope.launch {
             try {
                 val dataDir = File(filesDir, "boardgame-kotlin").apply { mkdirs() }
-                installAssets(dataDir)
+                val coreVersion = installAssets(dataDir)
                 val launcher = LauncherHost(
                     dataDir = dataDir,
                     port = PORT,
@@ -48,7 +48,7 @@ class ServerService : Service() {
                     pluginLoader = DexPluginLoader(applicationContext)
                 )
                 host = launcher
-                launcher.start(File(dataDir, "core/back/core.jar"))
+                launcher.start(File(dataDir, "core/$coreVersion/back/core.jar"))
                 updateNotification("Running on port $PORT")
             } catch (t: Throwable) {
                 updateNotification("Failed: ${t.message}")
@@ -62,11 +62,33 @@ class ServerService : Service() {
         super.onDestroy()
     }
 
-    private fun installAssets(dataDir: File) {
-        copyAsset("plugins/core.jar", File(dataDir, "core/back/core.jar"))
+    private fun installAssets(dataDir: File): String {
+        val version = bundledCoreVersion("plugins/core.jar") ?: "0.0.0"
+        val coreDir = File(dataDir, "core/$version")
+        copyAsset("plugins/core.jar", File(coreDir, "back/core.jar"))
+        File(coreDir, "version.properties").writeText("version=$version\n")
         copyAsset("plugins/cah.jar", File(dataDir, "games-modules/cah/back/cah.jar"))
         copyAssetTree("front", File(dataDir, "core/front"))
         copyAssetTree("modules/cah/front", File(dataDir, "games-modules/cah/front"))
+        return version
+    }
+
+    /** Reads `version.properties` from the bundled core jar without extracting it. */
+    private fun bundledCoreVersion(assetPath: String): String? {
+        assets.open(assetPath).use { input ->
+            java.util.zip.ZipInputStream(input).use { zip ->
+                while (true) {
+                    val entry = zip.nextEntry ?: break
+                    if (entry.name == "version.properties") {
+                        val text = zip.readBytes().toString(Charsets.UTF_8)
+                        return text.lineSequence()
+                            .firstOrNull { it.startsWith("version=") }
+                            ?.substringAfter('=')
+                    }
+                }
+            }
+        }
+        return null
     }
 
     private fun copyAsset(assetPath: String, target: File) {

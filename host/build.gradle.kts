@@ -14,6 +14,7 @@ java {
 }
 
 dependencies {
+    implementation(project(":shared"))
     implementation("com.hmhamster:boardgame-api:0.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
     implementation("io.ktor:ktor-server-core:3.0.3")

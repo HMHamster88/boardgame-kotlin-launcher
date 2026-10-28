@@ -20,22 +20,26 @@ Implemented:
 
 - `shared/` — **Kotlin Multiplatform** (`jvm` + `androidTarget`): GitHub release lookup, semver update
   checks, checksum verification, atomic install (temp dir → move), zip extraction with path-traversal
-  protection. JVM/Android file ops live in one `jvmSharedMain` source set. Tests cover install,
-  checksum mismatch, release parsing, version compare and traversal.
+  protection, and `CoreResolver` (installed-version scan + optional update). JVM/Android file ops and
+  HTTP live in one `jvmSharedMain` source set. Tests cover install, checksum mismatch, release
+  parsing, version compare, traversal and resolver behaviour.
 - `host/` — `LauncherHost`: Ktor CIO server (`/ws`, `/server-info`, static fronts), file-backed
   document store, injectable `PluginLoader` (`URLClassLoader` on desktop, `DexClassLoader` on
-  Android), `HttpURLConnection`-based HTTP that works on both platforms.
-- `desktop/` — console launcher (`DATA_DIR`, `PORT`, `CORE_JAR`, `FRONT_DIR`, `NO_CLI`).
-- `android-app/` — foreground service + WebView; extracts dual-format plugin jars and fronts from
-  APK assets, loads them with `DexClassLoader` (read-only mark), serves the SPA on `127.0.0.1:8080`.
-  The build runs d8 on the core/CAH jars and packages `classes.dex` + resources + fronts.
+  Android), shared `HttpURLConnection` client, and access to the running core for the CLI.
+- `desktop/` — console launcher: resolves the core via `CoreResolver` (or `CORE_JAR`), optional
+  `CHECK_FOR_UPDATES=true`, and a CLI (`game-modules list|add`, `users list`, `users roles add|remove`).
+- `android-app/` — foreground service + WebView; extracts the core into
+  `<dataDir>/core/<version>/back/core.jar`, game modules and fronts from APK assets, and loads plugins
+  with `DexClassLoader` (read-only mark). Serves the SPA on `127.0.0.1:8080`; WebView is padded by
+  system-bar insets (Android 15 edge-to-edge).
 - `spike/` — the phase-1 plugin/dex/Ktor spike.
 
 Verified on API 37 emulator: core plugin + CAH module loaded from dex, SPA served inside the app,
-game created, CAH remote loaded and played (question, hand, Submit).
+game created, CAH remote loaded and played (question, hand, Submit); header visible after the inset
+fix. Desktop e2e: the 31-step protocol scenario and the CLI commands.
 
-Not implemented yet: wiring `:shared` into the desktop/Android update checks (they still take local
-artifacts), APK/app-image signing, Play-independent update of the app shell, iOS/macOS targets.
+Not implemented yet: app-image/APK signing, updating the core while the app is running, game-module
+updates on Android (bundled copy is read-only), iOS/macOS targets.
 
 ## Run (development)
 
@@ -47,7 +51,7 @@ gradle -p ../cah :back:jar
 # shared tests
 gradle :shared:jvmTest
 
-# desktop
+# desktop (uses CORE_JAR, or CHECK_FOR_UPDATES=true to fetch boardgame-kotlin-core)
 mkdir -p "$DATA_DIR/games-modules/cah/back"
 cp ../cah/back/build/libs/back-0.1.0.jar "$DATA_DIR/games-modules/cah/back/cah-0.1.0.jar"
 DATA_DIR=... CORE_JAR=../core/back/build/libs/back-0.1.0.jar gradle :desktop:run
@@ -57,6 +61,9 @@ gradle :android-app:assembleDebug
 adb install -r android-app/build/outputs/apk/debug/android-app-debug.apk
 adb shell am start -n boardgame.launcher.android/.MainActivity
 ```
+
+Desktop env: `DATA_DIR`, `PORT`, `CORE_JAR`, `CORE_HOMEPAGE`, `CHECK_FOR_UPDATES`, `FRONT_DIR`, `NO_CLI`.
+CLI: `game-modules list|add <homepage>`, `users list`, `users roles add|remove <userId> <role>`, `help`, `exit`.
 
 The end-to-end check drives the captured 31-step protocol scenario (requires the workspace `tools/`):
 
