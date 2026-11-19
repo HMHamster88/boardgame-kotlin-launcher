@@ -39,7 +39,7 @@ fun main() {
 
     val http = UrlConnectionHttp()
     val installer = ModuleInstaller(http, JvmFileOps(), GithubReleases(http))
-    val resolver = CoreResolver(dataDir, installer, coreHomepage)
+    val resolver = CoreResolver(dataDir, installer, coreHomepage) { println("[core] $it") }
 
     val explicitCoreJar = System.getenv("CORE_JAR")?.takeIf { it.isNotBlank() }?.let(::File)
     val resolved = when {

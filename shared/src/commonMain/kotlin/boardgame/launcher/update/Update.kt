@@ -6,6 +6,11 @@ interface Http {
     suspend fun getBytes(url: String): ByteArray?
 }
 
+/** Optional [Http] capability: report download progress as (received bytes, total bytes or -1). */
+interface ProgressHttp {
+    suspend fun getBytes(url: String, onProgress: (received: Long, total: Long) -> Unit): ByteArray?
+}
+
 /** File-system + archive boundary; implemented by [boardgame.launcher.update.JvmFileOps] on both targets. */
 interface FileOps {
     fun exists(path: String): Boolean

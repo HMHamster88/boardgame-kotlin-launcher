@@ -12,12 +12,28 @@ class ModuleInstaller(
 ) {
     suspend fun latest(homepage: String): Release? = releases.latest(homepage)
 
-    suspend fun install(release: Release, targetDir: String): InstalledRelease {
+    suspend fun install(release: Release, targetDir: String, log: ((String) -> Unit)? = null): InstalledRelease {
         val existing = readVersion(targetDir)
         if (existing != null) return InstalledRelease(existing, targetDir)
 
         val asset = release.defaultAsset() ?: error("release ${release.version} has no assets")
-        val bytes = http.getBytes(asset.url) ?: error("failed to download ${asset.url}")
+        log?.invoke("downloading ${asset.name} (${release.version})")
+
+        var lastBucket = -1
+        val onProgress: (Long, Long) -> Unit = { received, total ->
+            if (total > 0) {
+                val percent = ((received * 100) / total).toInt()
+                val bucket = (percent / 25) * 25
+                if (bucket in 25..100 && bucket > lastBucket) {
+                    lastBucket = bucket
+                    log?.invoke("  $bucket%")
+                }
+            }
+        }
+        val bytes = when (http) {
+            is ProgressHttp -> http.getBytes(asset.url, onProgress)
+            else -> http.getBytes(asset.url)
+        } ?: error("failed to download ${asset.url}")
         asset.sha256?.let { expected ->
             val actual = files.sha256(bytes)
             require(actual.equals(expected, ignoreCase = true)) { "checksum mismatch for ${asset.name}" }
@@ -30,6 +46,7 @@ class ModuleInstaller(
         if (files.exists(targetDir)) files.deleteRecursively(targetDir)
         files.move(temp, targetDir)
         files.writeText("$targetDir/version.properties", "version=${release.version}\n")
+        log?.invoke("installed ${release.version} in $targetDir")
         return InstalledRelease(release.version, targetDir)
     }
 
