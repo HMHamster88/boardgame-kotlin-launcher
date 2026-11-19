@@ -73,6 +73,9 @@ val desktopRelease = tasks.register("desktopRelease") {
     group = "release"
     description = "Builds the desktop artifacts (single jar + desktop zip)"
     dependsOn(singleJar, desktopBundle)
+    if (System.getProperty("os.name").lowercase().contains("win")) {
+        dependsOn(":desktop:desktopExeZip")
+    }
 }
 
 /** Android release artifact: the unsigned APK (embeds the core/CAH plugins and fronts). */

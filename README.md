@@ -115,10 +115,15 @@ For the interactive CLI run `gradlew :desktop:devRun -PlauncherCli` in a termina
 ## Release packaging
 
 ```bash
-gradle release          # everything below
-gradle desktopRelease   # -> boardgame-launcher-<v>.jar and -desktop.zip
-gradle androidRelease   # -> boardgame-launcher-<v>.apk
+gradle release             # everything below
+gradle desktopRelease      # -> boardgame-launcher-<v>.jar, -desktop.zip, -windows.zip (Windows)
+gradle androidRelease      # -> boardgame-launcher-<v>.apk
+gradle :desktop:desktopExeZip  # Windows only: Boardgames.exe app-image + bundled JRE
 ```
+
+The Windows app-image is a portable folder (`build/appimage/Boardgames/Boardgames.exe` with `runtime/`
+and `app/`) zipped as `boardgame-launcher-<v>-windows.zip`; it does not need Java installed. The
+`--win-console` build shows launcher logs/CLI in a console window.
 
 Desktop does not need the Android SDK or the game repositories. The APK embeds `../core` and
 `../cah` outputs (jars plus fronts), so build those first — e.g. run `devBuild` in both repositories.
@@ -127,8 +132,9 @@ The release version is resolved from `-PlauncherVersion=…`, `RELEASE_VERSION`,
 git tag (`v` stripped), then `0.1.0`. Tag the release before building (or run `git fetch --tags`);
 the artifact names and the APK `versionName` follow it automatically.
 
-IntelliJ IDEA: the shared **Build launcher desktop** (`desktopRelease`) and **Build launcher
-android** (`androidRelease`) run configurations are in `.idea/runConfigurations`.
+IntelliJ IDEA: the shared **Build launcher desktop** (`desktopRelease`), **Build launcher exe**
+(`:desktop:desktopExeZip`) and **Build launcher android** (`androidRelease`) run configurations are
+in `.idea/runConfigurations`.
 
 The single jar is the quickest way to run a release (Java 11+):
 

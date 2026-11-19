@@ -69,3 +69,74 @@ tasks.shadowJar {
         attributes["Main-Class"] = "boardgame.launcher.desktop.MainKt"
     }
 }
+
+// ---------------------------------------------------------------- Windows app-image (jpackage)
+
+val isWindows = System.getProperty("os.name").lowercase().contains("win")
+
+/** Only the fat jar goes into jpackage's input dir (no thin jars/dependencies). */
+val jpackageInput = layout.buildDirectory.dir("jpackage/input")
+val jlinkRuntime = layout.buildDirectory.dir("jpackage/runtime")
+
+val stageLauncherJar = tasks.register<Sync>("stageLauncherJar") {
+    from(tasks.named<Jar>("shadowJar").flatMap { it.archiveFile })
+    into(jpackageInput)
+}
+
+/** Trimmed JRE: what the launcher needs (NIO/Ktor, serialization, TLS, zip, charsets). */
+val linkLauncherRuntime = tasks.register<Exec>("linkLauncherRuntime") {
+    group = "release"
+    description = "Creates the trimmed JRE embedded in the Windows launcher"
+    onlyIf { isWindows }
+    val jlink = File(System.getProperty("java.home"), "bin/jlink.exe")
+    doFirst { jlinkRuntime.get().asFile.deleteRecursively() }
+    commandLine(
+        jlink.absolutePath,
+        "--add-modules",
+        "java.base,java.logging,java.naming,jdk.crypto.ec,jdk.unsupported,jdk.zipfs,jdk.charsets",
+        "--output", jlinkRuntime.get().asFile.absolutePath,
+        "--strip-debug",
+        "--no-header-files",
+        "--no-man-pages",
+        "--compress=zip-6"
+    )
+}
+
+/** Windows app-image: build/dist/Boardgames/Boardgames.exe with a bundled JRE. */
+val desktopExe = tasks.register<Exec>("desktopExe") {
+    group = "release"
+    description = "Builds Boardgames.exe (jpackage app-image with a bundled JRE, Windows only)"
+    onlyIf { isWindows }
+    dependsOn(stageLauncherJar, linkLauncherRuntime)
+
+    val jpackage = File(System.getProperty("java.home"), "bin/jpackage.exe")
+    val dest = rootProject.layout.buildDirectory.dir("appimage").get().asFile
+    val appVersion = project.version.toString().substringBefore('-')
+        .takeIf { Regex("\\d+(\\.\\d+){1,3}").matches(it) } ?: "1.0.0"
+    outputs.dir(File(dest, "Boardgames"))
+    doFirst { File(dest, "Boardgames").deleteRecursively() }
+
+    commandLine(
+        jpackage.absolutePath,
+        "--type", "app-image",
+        "--name", "Boardgames",
+        "--app-version", appVersion,
+        "--input", jpackageInput.get().asFile.absolutePath,
+        "--main-jar", "boardgame-launcher-${project.version}.jar",
+        "--main-class", "boardgame.launcher.desktop.MainKt",
+        "--runtime-image", jlinkRuntime.get().asFile.absolutePath,
+        "--dest", dest.absolutePath,
+        "--win-console",
+        "--java-options", "-Dfile.encoding=UTF-8"
+    )
+}
+
+val desktopExeZip = tasks.register<Zip>("desktopExeZip") {
+    group = "release"
+    description = "Zips the Windows app-image (Boardgames.exe + bundled JRE)"
+    onlyIf { isWindows }
+    dependsOn(desktopExe)
+    archiveFileName.set("boardgame-launcher-${project.version}-windows.zip")
+    destinationDirectory.set(rootProject.layout.buildDirectory.dir("dist"))
+    from(rootProject.layout.buildDirectory.dir("appimage/Boardgames")) { into("Boardgames") }
+}
