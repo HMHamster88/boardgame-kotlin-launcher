@@ -107,8 +107,8 @@ and `SKIP_DEFAULT_GAMES=1` starts without auto-install (offline/tests).
 
 IntelliJ IDEA: the repository ships shared run configurations in `.idea/runConfigurations`:
 **Launcher (dev)** (Gradle task `:desktop:devRun`, which sets `DEV=true`, `DATA_DIR=build/dev-data`,
-`CORE_JAR=../core/back/build/libs/back-0.1.0.jar`, `PORT=8000` and `NO_CLI=1` with the launcher root
-as working directory) plus **Build core jar** / **Build CAH jar** for the rebuild → hot-reload loop.
+`CORE_JAR` to the newest core jar, `PORT=8000` and `NO_CLI=1` with the launcher root as working
+directory) plus **Build core jar** / **Build CAH jar** for the rebuild → hot-reload loop.
 For the interactive CLI run `gradlew :desktop:devRun -PlauncherCli` in a terminal.
 
 
@@ -122,6 +122,10 @@ gradle androidRelease   # -> boardgame-launcher-<v>.apk
 
 Desktop does not need the Android SDK or the game repositories. The APK embeds `../core` and
 `../cah` outputs (jars plus fronts), so build those first — e.g. run `devBuild` in both repositories.
+
+The release version is resolved from `-PlauncherVersion=…`, `RELEASE_VERSION`, the latest reachable
+git tag (`v` stripped), then `0.1.0`. Tag the release before building (or run `git fetch --tags`);
+the artifact names and the APK `versionName` follow it automatically.
 
 IntelliJ IDEA: the shared **Build launcher desktop** (`desktopRelease`) and **Build launcher
 android** (`androidRelease`) run configurations are in `.idea/runConfigurations`.
