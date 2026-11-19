@@ -42,9 +42,28 @@ android {
         )
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = System.getenv("BOARDGAME_KEYSTORE")
+            if (!keystorePath.isNullOrBlank()) {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("BOARDGAME_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("BOARDGAME_KEY_ALIAS")
+                keyPassword = System.getenv("BOARDGAME_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Local builds default to the debug key so the APK is signed and installable. Provide
+            // BOARDGAME_KEYSTORE/_PASSWORD/_KEY_ALIAS/_KEY_PASSWORD for a real release key.
+            signingConfig = if (System.getenv("BOARDGAME_KEYSTORE").isNullOrBlank()) {
+                signingConfigs.getByName("debug")
+            } else {
+                signingConfigs.getByName("release")
+            }
         }
     }
 }

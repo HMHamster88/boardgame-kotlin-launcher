@@ -128,6 +128,11 @@ and `app/`) zipped as `boardgame-launcher-<v>-windows.zip`; it does not need Jav
 Desktop does not need the Android SDK or the game repositories. The APK embeds `../core` and
 `../cah` outputs (jars plus fronts), so build those first — e.g. run `devBuild` in both repositories.
 
+Release APKs are signed with the debug key by default, so local `androidRelease` builds install on a
+device. For a real release key set `BOARDGAME_KEYSTORE` (absolute path),
+`BOARDGAME_KEYSTORE_PASSWORD`, `BOARDGAME_KEY_ALIAS` and `BOARDGAME_KEY_PASSWORD`; the debug-signed
+APK is for testing, not a store upload.
+
 The release version is resolved from `-PlauncherVersion=…`, `RELEASE_VERSION`, the latest reachable
 git tag (`v` stripped), then `0.1.0`. Tag the release before building (or run `git fetch --tags`);
 the artifact names and the APK `versionName` follow it automatically.
