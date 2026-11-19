@@ -113,6 +113,10 @@ gradle release
 # -> build/dist/boardgame-launcher-<v>.apk           unsigned release APK
 ```
 
+The APK embeds `../core` and `../cah` outputs (jars plus fronts), so build those first — e.g. run
+`devBuild` in both repositories. IntelliJ IDEA: the shared **Build launcher release** run
+configuration (`.idea/runConfigurations`) runs `release`.
+
 The single jar is the quickest way to run a release (Java 11+):
 
 ```bash
