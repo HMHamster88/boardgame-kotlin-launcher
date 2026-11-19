@@ -37,9 +37,12 @@ tasks.named<JavaExec>("run") {
 tasks.register<JavaExec>("devRun") {
     group = "application"
     description = "Runs the launcher in development mode (DEV=true, DATA_DIR=build/dev-data)"
-    dependsOn(tasks.named("classes"))
+    // Run the fat jar: it embeds the API, so rebuilding core/api while the launcher runs is not
+    // blocked by a locked jar on Windows.
+    val shadowJar = tasks.named<Jar>("shadowJar")
+    dependsOn(shadowJar)
     mainClass.set("boardgame.launcher.desktop.MainKt")
-    classpath = sourceSets.main.get().runtimeClasspath
+    classpath = files(shadowJar.flatMap { it.archiveFile })
     workingDir = rootProject.projectDir
     environment("DEV", "true")
     environment("DATA_DIR", System.getenv("DATA_DIR") ?: "build/dev-data")
