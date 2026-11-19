@@ -107,15 +107,16 @@ For the interactive CLI run `gradlew :desktop:devRun -PlauncherCli` in a termina
 ## Release packaging
 
 ```bash
-gradle release
-# -> build/dist/boardgame-launcher-<v>.jar           single executable jar (all deps, merged services)
-# -> build/dist/boardgame-launcher-<v>-desktop.zip   installDist (needs a JRE on the target)
-# -> build/dist/boardgame-launcher-<v>.apk           unsigned release APK
+gradle release          # everything below
+gradle desktopRelease   # -> boardgame-launcher-<v>.jar and -desktop.zip
+gradle androidRelease   # -> boardgame-launcher-<v>.apk
 ```
 
-The APK embeds `../core` and `../cah` outputs (jars plus fronts), so build those first — e.g. run
-`devBuild` in both repositories. IntelliJ IDEA: the shared **Build launcher release** run
-configuration (`.idea/runConfigurations`) runs `release`.
+Desktop does not need the Android SDK or the game repositories. The APK embeds `../core` and
+`../cah` outputs (jars plus fronts), so build those first — e.g. run `devBuild` in both repositories.
+
+IntelliJ IDEA: the shared **Build launcher desktop** (`desktopRelease`) and **Build launcher
+android** (`androidRelease`) run configurations are in `.idea/runConfigurations`.
 
 The single jar is the quickest way to run a release (Java 11+):
 

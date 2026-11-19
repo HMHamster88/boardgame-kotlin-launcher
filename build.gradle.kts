@@ -50,8 +50,22 @@ val singleJar = tasks.register<Copy>("singleJar") {
     into(releaseDist)
 }
 
+/** Desktop release artifacts: the single executable jar and the installDist zip. */
+val desktopRelease = tasks.register("desktopRelease") {
+    group = "release"
+    description = "Builds the desktop artifacts (single jar + desktop zip)"
+    dependsOn(singleJar, desktopBundle)
+}
+
+/** Android release artifact: the unsigned APK (embeds the core/CAH plugins and fronts). */
+val androidRelease = tasks.register("androidRelease") {
+    group = "release"
+    description = "Builds the unsigned release APK"
+    dependsOn(androidApk)
+}
+
 tasks.register("release") {
     group = "release"
     description = "Builds all launcher release artifacts"
-    dependsOn(desktopBundle, androidApk, singleJar)
+    dependsOn(desktopRelease, androidRelease)
 }
