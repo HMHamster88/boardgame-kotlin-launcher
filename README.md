@@ -63,7 +63,7 @@ adb shell am start -n boardgame.launcher.android/.MainActivity
 ```
 
 Desktop env: `DATA_DIR`, `PORT`, `CORE_JAR`, `CORE_HOMEPAGE`, `CHECK_FOR_UPDATES`, `FRONT_DIR`, `DEV`,
-`DEV_MODULES`, `NO_CLI`.
+`DEV_MODULES`, `SKIP_DEFAULT_GAMES`, `NO_CLI`.
 CLI: `game-modules list|add <homepage>`, `users list`, `users roles add|remove <userId> <role>`, `help`, `exit`.
 
 ## Hot reload (development)
@@ -96,6 +96,10 @@ How it works:
 - `FRONT_DIR` defaults to `<core repo>/back/public` in dev, so `npm run build-front` is served directly.
 - Watch logs start with `[dev]`. A failed sync (e.g. a build still writing the jar) retries; a failed
   reload keeps the previous core.
+
+The core installs its default game modules on start (CAH + the planned games). Set
+`CHECK_FOR_UPDATES=true` to also update installed game modules, and `SKIP_DEFAULT_GAMES=1` to start
+without auto-install (offline/tests).
 
 IntelliJ IDEA: the repository ships shared run configurations in `.idea/runConfigurations`:
 **Launcher (dev)** (Gradle task `:desktop:devRun`, which sets `DEV=true`, `DATA_DIR=build/dev-data`,
