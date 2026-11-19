@@ -5,9 +5,9 @@ import java.util.zip.ZipFile
 
 /**
  * Development watcher: mirrors game-module build outputs (jars from back/build/libs and assets from
- * front/dist) into DATA_DIR/games-modules/<name>/ and asks the launcher to restart the core
- * whenever a jar changes. The source jars are never loaded directly, so rebuilding is safe while
- * the launcher runs.
+ * front/dist) into DATA_DIR/games-modules/<name>/<version>/ and asks the launcher to restart the core
+ * whenever a jar changes. The version comes from the jar's `version.properties`. The source jars are
+ * never loaded directly, so rebuilding is safe while the launcher runs.
  */
 class DevWatcher(
     private val coreJar: File,
@@ -94,9 +94,12 @@ class DevWatcher(
 
     private fun syncModule(module: DevModule) {
         val jars = buildJars(module)
+        val version = jars.firstOrNull()?.let(::jarVersion) ?: "dev"
+        val targetRoot = File(moduleRoot, "${module.name}/$version")
+
         if (jars.isNotEmpty()) {
             jars.forEach(::verifyJar)
-            val targetBack = File(moduleRoot, "${module.name}/back")
+            val targetBack = File(targetRoot, "back")
             targetBack.mkdirs()
             val installed = jars.map { jar ->
                 // A loaded jar cannot be replaced on Windows, so every build gets its own file.
@@ -110,10 +113,25 @@ class DevWatcher(
 
         val frontDir = module.frontDir
         if (frontDir.isDirectory) {
-            val targetFront = File(moduleRoot, "${module.name}/front")
+            val targetFront = File(targetRoot, "front")
             if (targetFront.exists()) targetFront.deleteRecursively()
             frontDir.copyRecursively(targetFront, overwrite = true)
         }
+    }
+
+    /** Game modules are installed as `games-modules/<name>/<version>/`; mirrors that in dev. */
+    private fun jarVersion(jar: File): String {
+        val version = runCatching {
+            ZipFile(jar).use { zip ->
+                val entry = zip.getEntry("version.properties") ?: return@use null
+                val text = zip.getInputStream(entry).bufferedReader().use { it.readText() }
+                text.lineSequence()
+                    .firstOrNull { it.startsWith("version=") }
+                    ?.substringAfter('=')
+                    ?.trim()
+            }
+        }.getOrNull()
+        return version?.takeIf { it.isNotBlank() }?.replace(Regex("[^A-Za-z0-9._-]"), "_") ?: "dev"
     }
 
     private fun buildJars(module: DevModule): List<File> {

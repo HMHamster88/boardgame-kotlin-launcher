@@ -63,18 +63,21 @@ class ServerService : Service() {
     }
 
     private fun installAssets(dataDir: File): String {
-        val version = bundledCoreVersion("plugins/core.jar") ?: "0.0.0"
-        val coreDir = File(dataDir, "core/$version")
+        val coreVersion = bundledVersion("plugins/core.jar") ?: "0.0.0"
+        val coreDir = File(dataDir, "core/$coreVersion")
         copyAsset("plugins/core.jar", File(coreDir, "back/core.jar"))
-        File(coreDir, "version.properties").writeText("version=$version\n")
-        copyAsset("plugins/cah.jar", File(dataDir, "games-modules/cah/back/cah.jar"))
+        File(coreDir, "version.properties").writeText("version=$coreVersion\n")
         copyAssetTree("front", File(dataDir, "core/front"))
-        copyAssetTree("modules/cah/front", File(dataDir, "games-modules/cah/front"))
-        return version
+
+        val cahVersion = bundledVersion("plugins/cah.jar") ?: "0.0.0"
+        val cahDir = File(dataDir, "games-modules/cah/$cahVersion")
+        copyAsset("plugins/cah.jar", File(cahDir, "back/cah.jar"))
+        copyAssetTree("modules/cah/front", File(cahDir, "front"))
+        return coreVersion
     }
 
-    /** Reads `version.properties` from the bundled core jar without extracting it. */
-    private fun bundledCoreVersion(assetPath: String): String? {
+    /** Reads `version.properties` from a bundled jar without extracting it. */
+    private fun bundledVersion(assetPath: String): String? {
         assets.open(assetPath).use { input ->
             java.util.zip.ZipInputStream(input).use { zip ->
                 while (true) {

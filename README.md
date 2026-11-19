@@ -52,8 +52,8 @@ gradle -p ../cah :back:jar
 gradle :shared:jvmTest
 
 # desktop (uses CORE_JAR, or CHECK_FOR_UPDATES=true to fetch boardgame-kotlin-core)
-mkdir -p "$DATA_DIR/games-modules/cah/back"
-cp ../cah/back/build/libs/back-0.1.0.jar "$DATA_DIR/games-modules/cah/back/cah-0.1.0.jar"
+mkdir -p "$DATA_DIR/games-modules/cah/0.1.0/back"
+cp ../cah/back/build/libs/back-0.1.0.jar "$DATA_DIR/games-modules/cah/0.1.0/back/cah-0.1.0.jar"
 DATA_DIR=... CORE_JAR=../core/back/build/libs/back-0.1.0.jar gradle :desktop:run
 
 # android (copies fronts and d8-dexes the jars into APK assets)
@@ -90,8 +90,9 @@ How it works:
   can always overwrite the build output.
 - Game repositories are auto-detected as siblings of the core repo that have `back/build.gradle.kts`
   and `front/package.json`. Override with `DEV_MODULES=path1;path2`.
-- Built jars are mirrored to `<DATA_DIR>/games-modules/<repo>/back` under a unique file name; the core
-  loads the newest jar. Fronts are copied from `<repo>/front/dist` to `<DATA_DIR>/games-modules/<repo>/front`.
+- Built jars are mirrored to `<DATA_DIR>/games-modules/<repo>/<version>/back` under a unique file
+  name (the version comes from the jar's `version.properties`); the core loads the newest version and
+  jar. Fronts are copied from `<repo>/front/dist` to `<DATA_DIR>/games-modules/<repo>/<version>/front`.
 - On a jar change the core is shut down and restarted; WebSocket clients get `1001 core reload` and the
   front reconnects automatically (about 1 s). Lobby/game state is read back from storage.
 - A front-only change copies the assets without a restart; refresh the page to load the new remote.
@@ -137,7 +138,7 @@ The Android release APK embeds the dual-format core/CAH jars and both fronts, d8
 `android-app` build. APK signing and `jpackage` app-images are still future work.
 
 Consuming a release: unzip the core asset into `<DATA_DIR>/core/<version>/` and a game asset into
-`<DATA_DIR>/games-modules/<name>/`, then start without `CORE_JAR` — `CoreResolver` picks it up.
+`<DATA_DIR>/games-modules/<name>/<version>/`, then start without `CORE_JAR` — `CoreResolver` picks it up.
 
 ## Testing updates locally
 
