@@ -62,8 +62,41 @@ adb install -r android-app/build/outputs/apk/debug/android-app-debug.apk
 adb shell am start -n boardgame.launcher.android/.MainActivity
 ```
 
-Desktop env: `DATA_DIR`, `PORT`, `CORE_JAR`, `CORE_HOMEPAGE`, `CHECK_FOR_UPDATES`, `FRONT_DIR`, `NO_CLI`.
+Desktop env: `DATA_DIR`, `PORT`, `CORE_JAR`, `CORE_HOMEPAGE`, `CHECK_FOR_UPDATES`, `FRONT_DIR`, `DEV`,
+`DEV_MODULES`, `NO_CLI`.
 CLI: `game-modules list|add <homepage>`, `users list`, `users roles add|remove <userId> <role>`, `help`, `exit`.
+
+## Hot reload (development)
+
+`DEV=true` watches the core jar and the game repositories, and restarts the core when a jar changes:
+
+```bash
+# from boardgame-kotlin/launcher (use absolute paths on Windows)
+DATA_DIR=../../tmp/dev \
+CORE_JAR=../core/back/build/libs/back-0.1.0.jar \
+DEV=true gradle :desktop:run
+
+# in another shell, after editing:
+gradle -p ../core :back:jar      # -> core restarts
+gradle -p ../cah :back:jar       # -> core restarts and reloads the CAH module
+npm --prefix ../cah run build-front   # -> assets copied, reload the browser page
+```
+
+How it works:
+
+- `CORE_JAR` is only a source: the launcher loads a private copy from `<DATA_DIR>/dev/core`, so Gradle
+  can always overwrite the build output.
+- Game repositories are auto-detected as siblings of the core repo that have `back/build.gradle.kts`
+  and `front/package.json`. Override with `DEV_MODULES=path1;path2`.
+- Built jars are mirrored to `<DATA_DIR>/games-modules/<repo>/back` under a unique file name; the core
+  loads the newest jar. Fronts are copied from `<repo>/front/dist` to `<DATA_DIR>/games-modules/<repo>/front`.
+- On a jar change the core is shut down and restarted; WebSocket clients get `1001 core reload` and the
+  front reconnects automatically (about 1 s). Lobby/game state is read back from storage.
+- A front-only change copies the assets without a restart; refresh the page to load the new remote.
+- `FRONT_DIR` defaults to `<core repo>/back/public` in dev, so `npm run build-front` is served directly.
+- Watch logs start with `[dev]`. A failed sync (e.g. a build still writing the jar) retries; a failed
+  reload keeps the previous core.
+
 
 ## Release packaging
 

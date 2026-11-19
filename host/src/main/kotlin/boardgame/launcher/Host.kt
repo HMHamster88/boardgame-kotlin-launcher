@@ -24,12 +24,14 @@ import io.ktor.server.websocket.DefaultWebSocketServerSession
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.Frame
+import io.ktor.websocket.CloseReason
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -59,17 +61,19 @@ class LauncherHost(
     override val console: HostConsole = SystemConsole()
 
     private var server: EmbeddedServer<*, *>? = null
+    @Volatile
     lateinit var core: GameCore
         private set
+
+    private var currentCoreJar: File? = null
+    private val webSockets = java.util.concurrent.ConcurrentHashMap.newKeySet<DefaultWebSocketServerSession>()
 
     fun gameModules() = core.gameModules()
 
     suspend fun installGameModule(homepage: String) = core.installGameModule(homepage)
 
     fun start(coreJar: File) {
-        val module = loadPlugin(coreJar, CoreModule::class.java)
-        core = module.start(this)
-
+        startCore(coreJar)
         server = embeddedServer(CIO, host = "0.0.0.0", port = port) {
             install(WebSockets)
             routing {
@@ -80,12 +84,14 @@ class LauncherHost(
                         return@webSocket
                     }
                     val peer = WsPeer(userId, this)
+                    webSockets += this
                     core.attach(peer)
                     try {
                         for (frame in incoming) {
                             if (frame is Frame.Text) peer.deliver(frame.readText())
                         }
                     } finally {
+                        webSockets -= this
                         peer.closed()
                         core.detach(peer)
                     }
@@ -114,10 +120,56 @@ class LauncherHost(
         log("listening on http://127.0.0.1:$port")
     }
 
-    fun stop() {
-        if (::core.isInitialized) {
-            kotlinx.coroutines.runBlocking { core.shutdown() }
+    /**
+     * Development hot reload: drops WebSocket clients (the front reconnects automatically), shuts the
+     * current core down, and starts a new core from [coreJar]. Falls back to the previous jar when the
+     * new one cannot be started. Returns true when the new core is serving.
+     */
+    fun reloadCore(coreJar: File): Boolean {
+        val previousJar = currentCoreJar
+        closeWebSockets()
+        stopCore()
+        return try {
+            startCore(coreJar)
+            true
+        } catch (error: Throwable) {
+            log("core reload failed: ${error.message}")
+            if (previousJar != null && previousJar.isFile) {
+                runCatching { startCore(previousJar) }
+                    .onSuccess { log("previous core restored from ${previousJar.name}") }
+                    .onFailure { log("previous core could not be restored: ${it.message}") }
+            }
+            false
         }
+    }
+
+    private fun startCore(coreJar: File) {
+        val module = loadPlugin(coreJar, CoreModule::class.java)
+        core = module.start(this)
+        currentCoreJar = coreJar
+    }
+
+    private fun stopCore() {
+        if (!::core.isInitialized) return
+        runBlocking { runCatching { core.shutdown() } }
+        pluginLoader.close()
+    }
+
+    private fun closeWebSockets() {
+        val sessions = webSockets.toList()
+        webSockets.clear()
+        runBlocking {
+            sessions.forEach { session ->
+                runCatching {
+                    session.close(CloseReason(CloseReason.Codes.GOING_AWAY, "core reload"))
+                }
+            }
+        }
+    }
+
+    fun stop() {
+        closeWebSockets()
+        stopCore()
         server?.stop(0, 1500)
     }
 

@@ -25,7 +25,9 @@ private const val DEFAULT_CORE_HOMEPAGE = "https://github.com/HMHamster88/boardg
  *  - CORE_JAR          explicit core plugin jar (skips the release lookup)
  *  - CORE_HOMEPAGE     core repository (default: boardgame-kotlin-core)
  *  - CHECK_FOR_UPDATES "true" to look for a newer core release
- *  - FRONT_DIR         front assets (default <core dir>/front)
+ *  - FRONT_DIR         front assets (default <core dir>/front, or ../back/public in dev)
+ *  - DEV               "true" watches core/game jars and reloads them on rebuild
+ *  - DEV_MODULES       game repo roots for DEV, separated by ';' (default: sibling repos)
  *  - NO_CLI            "1" to run without the interactive console
  */
 fun main() {
@@ -33,6 +35,7 @@ fun main() {
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8000
     val coreHomepage = System.getenv("CORE_HOMEPAGE")?.trim()?.takeIf { it.isNotEmpty() } ?: DEFAULT_CORE_HOMEPAGE
     val checkForUpdates = System.getenv("CHECK_FOR_UPDATES").equals("true", ignoreCase = true)
+    val dev = System.getenv("DEV").equals("true", ignoreCase = true)
 
     val http = UrlConnectionHttp()
     val installer = ModuleInstaller(http, JvmFileOps(), GithubReleases(http))
@@ -57,15 +60,33 @@ fun main() {
 
     val frontDir = System.getenv("FRONT_DIR")?.let(::File)
         ?: resolved?.let { File(it.directory, "front") }?.takeIf { it.isDirectory }
+        ?: (if (dev) devFrontDir(coreJar) else null)
         ?: File(dataDir, "core/front")
 
     val host = LauncherHost(dataDir, port, frontDir)
-    host.start(coreJar)
+
+    val devModules = if (dev) resolveDevModules(coreJar, System.getenv("DEV_MODULES")) else emptyList()
+    var watcher: DevWatcher? = null
+    if (dev) {
+        watcher = DevWatcher(coreJar, devModules, dataDir, ::println) { jar -> host.reloadCore(jar) }
+        runCatching { watcher.sync() }
+            .onFailure { System.err.println("[dev] initial module sync failed: ${it.message}") }
+    }
+
+    val loadedCoreJar = watcher?.currentCoreJar ?: coreJar
+    host.start(loadedCoreJar)
 
     println("boardgame-kotlin launcher")
     println("  data: $dataDir")
-    println("  core: ${coreJar.absolutePath}${resolved?.let { " (${it.version})" } ?: ""}")
+    println("  core: ${loadedCoreJar.absolutePath}${resolved?.let { " (${it.version})" } ?: ""}")
     println("  open: http://127.0.0.1:$port")
+
+    if (dev) {
+        println("  dev: watching core jar and ${devModules.size} game module(s)")
+        devModules.forEach { println("       ${it.name} <- ${it.root}") }
+        println("       rebuild with: gradle :back:jar (and npm run build-front) in each repo")
+        watcher?.start()
+    }
 
     if (System.getenv("NO_CLI") == "1") {
         Thread.currentThread().join()
@@ -140,4 +161,38 @@ private fun updateRole(host: LauncherHost, userId: String, role: String, add: Bo
     val roles = if (add) (user.roles + role).distinct() else user.roles - role
     host.storage.put("users", userId, apiJson.encodeToString(user.copy(roles = roles)))
     return "roles for $userId: ${roles.joinToString(", ").ifEmpty { "(none)" }}"
+}
+
+/** Dev default: serve the SPA straight from the core repo's Vite output. */
+private fun devFrontDir(coreJar: File): File? {
+    val backDir = coreJar.absoluteFile.parentFile?.parentFile?.parentFile ?: return null
+    val public = File(backDir, "public")
+    return public.takeIf { File(it, "index.html").isFile }
+}
+
+/**
+ * Dev modules: explicit `DEV_MODULES` entries, or the sibling repositories of the core repo that
+ * look like game modules (a Gradle `back` and a built `front`).
+ */
+private fun resolveDevModules(coreJar: File, spec: String?): List<DevModule> {
+    val entries = spec.orEmpty().split(';', ',').map { it.trim() }.filter { it.isNotEmpty() }
+    if (entries.isNotEmpty()) {
+        return entries.mapNotNull { entry ->
+            val root = File(entry).absoluteFile
+            if (!root.isDirectory) {
+                System.err.println("[dev] ignoring DEV_MODULES entry (not a directory): $entry")
+                null
+            } else {
+                DevModule(root.name, root)
+            }
+        }
+    }
+
+    val repo = coreJar.absoluteFile.parentFile?.parentFile?.parentFile?.parentFile ?: return emptyList()
+    val workspace = repo.parentFile ?: return emptyList()
+    return workspace.listFiles().orEmpty()
+        .filter { it.isDirectory && it.canonicalFile != repo.canonicalFile }
+        .filter { File(it, "back/build.gradle.kts").isFile && File(it, "front/package.json").isFile }
+        .sortedBy { it.name }
+        .map { DevModule(it.name, it) }
 }
