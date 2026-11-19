@@ -256,6 +256,10 @@ class LauncherHost(
 
         override suspend fun getText(url: String): String? = client.getText(url)
         override suspend fun getBytes(url: String): ByteArray? = client.getBytes(url)
+        override suspend fun getBytes(
+            url: String,
+            onProgress: (received: Long, total: Long) -> Unit
+        ): ByteArray? = client.getBytes(url, onProgress)
     }
 
     private class SystemConsole : HostConsole {

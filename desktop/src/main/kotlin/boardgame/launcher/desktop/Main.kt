@@ -113,7 +113,6 @@ fun main() {
             parts[0] == "game-modules" && parts.getOrNull(1) == "add" && parts.size >= 3 -> {
                 runBlocking {
                     runCatching { host.installGameModule(parts[2]) }
-                        .onSuccess { println("installed ${it.type} ${it.version} in ${it.directory}") }
                         .onFailure { println("install failed: ${it.message}") }
                 }
             }
