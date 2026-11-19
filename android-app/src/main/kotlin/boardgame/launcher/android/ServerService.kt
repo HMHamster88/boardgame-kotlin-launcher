@@ -45,18 +45,30 @@ class ServerService : Service() {
                     dataDir = dataDir,
                     port = PORT,
                     frontDir = File(dataDir, "core/front"),
-                    pluginLoader = DexPluginLoader(applicationContext)
+                    pluginLoader = DexPluginLoader(applicationContext),
+                    console = AppConsole
                 )
                 host = launcher
+                AppConsole.println("[service] starting core $coreVersion")
                 launcher.start(File(dataDir, "core/$coreVersion/back/core.jar"))
+                AppConsole.commandHandler = { command, callback ->
+                    scope.launch {
+                        val result = runCatching { launcher.execute(command) }
+                            .getOrElse { "error: ${it.message}" }
+                        callback(result)
+                    }
+                }
+                AppConsole.println("[service] running on port $PORT")
                 updateNotification("Running on port $PORT")
             } catch (t: Throwable) {
+                AppConsole.println("[service] failed: ${t.message}")
                 updateNotification("Failed: ${t.message}")
             }
         }
     }
 
     override fun onDestroy() {
+        AppConsole.commandHandler = null
         host?.stop()
         scope.cancel()
         super.onDestroy()

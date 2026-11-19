@@ -1,8 +1,5 @@
 package boardgame.launcher.desktop
 
-import boardgame.api.Roles
-import boardgame.api.User
-import boardgame.api.apiJson
 import boardgame.launcher.LauncherHost
 import boardgame.launcher.update.CoreResolver
 import boardgame.launcher.update.GithubReleases
@@ -10,8 +7,6 @@ import boardgame.launcher.update.JvmFileOps
 import boardgame.launcher.update.ModuleInstaller
 import boardgame.launcher.update.UrlConnectionHttp
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import java.io.File
 
 private const val DEFAULT_CORE_HOMEPAGE = "https://github.com/HMHamster88/boardgame-kotlin-core"
@@ -102,68 +97,13 @@ fun main() {
         System.out.flush()
         val line = readlnOrNull() ?: break
         if (line.isBlank()) continue
-        val parts = line.trim().split(Regex("\\s+"))
-
-        when {
-            parts[0] == "exit" || parts[0] == "quit" -> break
-            parts[0] == "help" -> printHelp()
-
-            parts[0] == "game-modules" && parts.getOrNull(1) == "list" -> {
-                host.gameModules().forEach { module ->
-                    println("${module.type}\t${module.version}\t${module.directory}\t${module.homepage}")
-                }
-            }
-
-            parts[0] == "game-modules" && parts.getOrNull(1) == "add" && parts.size >= 3 -> {
-                runBlocking {
-                    runCatching { host.installGameModule(parts[2]) }
-                        .onFailure { println("install failed: ${it.message}") }
-                }
-            }
-
-            parts[0] == "users" && parts.getOrNull(1) == "list" -> {
-                host.storage.getAll("users").forEach { println(it) }
-            }
-
-            parts[0] == "users" && parts.getOrNull(1) == "roles" && parts.size >= 5 -> {
-                val action = parts[2]
-                val userId = parts[3]
-                val role = parts[4]
-                if (role != Roles.ADMIN) {
-                    println("unknown role: $role (available: ${Roles.ADMIN})")
-                } else {
-                    println(updateRole(host, userId, role, add = action == "add"))
-                }
-            }
-
-            else -> println("unknown command; type 'help'")
-        }
+        val command = line.trim()
+        if (command == "exit" || command == "quit") break
+        val output = runBlocking { host.execute(command) }
+        if (output.isNotBlank()) println(output)
     }
 
     runBlocking { host.stop() }
-}
-
-private fun printHelp() {
-    println(
-        """
-        commands:
-          game-modules list
-          game-modules add <github-homepage>
-          users list
-          users roles add|remove <userId> <role>
-          help
-          exit
-        """.trimIndent()
-    )
-}
-
-private fun updateRole(host: LauncherHost, userId: String, role: String, add: Boolean): String {
-    val raw = host.storage.get("users", userId) ?: return "no user with id $userId"
-    val user = runCatching { apiJson.decodeFromString<User>(raw) }.getOrNull()
-        ?: return "invalid user document for $userId"
-    val roles = if (add) (user.roles + role).distinct() else user.roles - role
-    host.storage.put("users", userId, apiJson.encodeToString(user.copy(roles = roles)))
-    return "roles for $userId: ${roles.joinToString(", ").ifEmpty { "(none)" }}"
 }
 
 /** Dev default: serve the SPA straight from the core repo's Vite output. */

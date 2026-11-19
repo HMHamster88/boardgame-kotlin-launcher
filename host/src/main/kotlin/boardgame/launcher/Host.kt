@@ -7,7 +7,10 @@ import boardgame.api.HostHttp
 import boardgame.api.HostServices
 import boardgame.api.Peer
 import boardgame.api.PlatformInfo
+import boardgame.api.Roles
 import boardgame.api.Storage
+import boardgame.api.User
+import boardgame.api.apiJson
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.install
@@ -33,6 +36,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
@@ -53,13 +58,14 @@ class LauncherHost(
     val port: Int,
     private val frontDir: File,
     private val pluginLoader: PluginLoader = UrlPluginLoader(),
-    override val checkForUpdates: Boolean = false
+    override val checkForUpdates: Boolean = false,
+    console: HostConsole? = null
 ) : HostServices {
 
     override val platform: PlatformInfo = PlatformInfo(PlatformInfo.DESKTOP, "0.1.0", dataDir)
     override val storage: Storage = DocumentStore(File(dataDir, "db"))
     override val http: HostHttp = SharedHttp()
-    override val console: HostConsole = SystemConsole()
+    override val console: HostConsole = console ?: SystemConsole()
 
     private var server: EmbeddedServer<*, *>? = null
     @Volatile
@@ -72,6 +78,47 @@ class LauncherHost(
     fun gameModules() = core.gameModules()
 
     suspend fun installGameModule(homepage: String) = core.installGameModule(homepage)
+
+    /**
+     * Runs a launcher console command and returns the text to show. Shared by the desktop CLI and the
+     * Android console, so both support the same commands.
+     */
+    suspend fun execute(command: String): String {
+        val parts = command.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (parts.isEmpty()) return ""
+        return when {
+            parts[0] == "help" -> HELP_TEXT
+
+            parts[0] == "game-modules" && parts.getOrNull(1) == "list" ->
+                gameModules().joinToString("\n") {
+                    "${it.type}\t${it.version}\t${it.directory}\t${it.homepage}"
+                }
+
+            parts[0] == "game-modules" && parts.getOrNull(1) == "add" && parts.size >= 3 ->
+                runCatching { installGameModule(parts[2]) }.fold(
+                    onSuccess = { "installed ${it.type} ${it.version} in ${it.directory}" },
+                    onFailure = { "install failed: ${it.message}" }
+                )
+
+            parts[0] == "users" && parts.getOrNull(1) == "list" ->
+                storage.getAll("users").joinToString("\n")
+
+            parts[0] == "users" && parts.getOrNull(1) == "roles" && parts.size >= 5 ->
+                updateRole(parts[2], parts[3], parts[4])
+
+            else -> "unknown command; type 'help'"
+        }
+    }
+
+    private fun updateRole(action: String, userId: String, role: String): String {
+        if (role != Roles.ADMIN) return "unknown role: $role (available: ${Roles.ADMIN})"
+        val raw = storage.get("users", userId) ?: return "no user with id $userId"
+        val user = runCatching { apiJson.decodeFromString<User>(raw) }.getOrNull()
+            ?: return "invalid user document for $userId"
+        val roles = if (action == "add") (user.roles + role).distinct() else user.roles - role
+        storage.put("users", userId, apiJson.encodeToString(user.copy(roles = roles)))
+        return "roles for $userId: ${roles.joinToString(", ").ifEmpty { "(none)" }}"
+    }
 
     fun start(coreJar: File) {
         startCore(coreJar)
@@ -273,3 +320,13 @@ class LauncherHost(
         }
     }
 }
+
+private val HELP_TEXT = """
+    commands:
+      game-modules list
+      game-modules add <github-homepage>
+      users list
+      users roles add|remove <userId> <role>
+      help
+      exit
+""".trimIndent()

@@ -31,7 +31,8 @@ Implemented:
 - `android-app/` — foreground service + WebView; extracts the core into
   `<dataDir>/core/<version>/back/core.jar`, game modules and fronts from APK assets, and loads plugins
   with `DexClassLoader` (read-only mark). Serves the SPA on `127.0.0.1:8080`; WebView is padded by
-  system-bar insets (Android 15 edge-to-edge).
+  system-bar insets (Android 15 edge-to-edge). An in-app console (the `>_` button) shows host/core
+  logs and runs the same commands as the desktop CLI (`help`, `game-modules list|add`, `users ...`).
 - `spike/` — the phase-1 plugin/dex/Ktor spike.
 
 Verified on API 37 emulator: core plugin + CAH module loaded from dex, SPA served inside the app,
