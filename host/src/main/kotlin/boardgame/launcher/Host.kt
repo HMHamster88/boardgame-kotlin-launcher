@@ -52,7 +52,8 @@ class LauncherHost(
     val dataDir: File,
     val port: Int,
     private val frontDir: File,
-    private val pluginLoader: PluginLoader = UrlPluginLoader()
+    private val pluginLoader: PluginLoader = UrlPluginLoader(),
+    override val checkForUpdates: Boolean = false
 ) : HostServices {
 
     override val platform: PlatformInfo = PlatformInfo(PlatformInfo.DESKTOP, "0.1.0", dataDir)

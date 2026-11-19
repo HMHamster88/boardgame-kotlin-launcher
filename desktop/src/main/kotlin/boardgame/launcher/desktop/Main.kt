@@ -24,7 +24,7 @@ private const val DEFAULT_CORE_HOMEPAGE = "https://github.com/HMHamster88/boardg
  *  - PORT              HTTP/WS port (default 8000)
  *  - CORE_JAR          explicit core plugin jar (skips the release lookup)
  *  - CORE_HOMEPAGE     core repository (default: boardgame-kotlin-core)
- *  - CHECK_FOR_UPDATES "true" to look for a newer core release
+ *  - CHECK_FOR_UPDATES "true"/"false" override; defaults to true unless DEV=true
  *  - FRONT_DIR         front assets (default <core dir>/front, or ../back/public in dev)
  *  - DEV               "true" watches core/game jars and reloads them on rebuild
  *  - DEV_MODULES       game repo roots for DEV, separated by ';' (default: sibling repos)
@@ -34,8 +34,12 @@ fun main() {
     val dataDir = File(System.getenv("DATA_DIR") ?: File(System.getProperty("user.home"), "boardgame-kotlin").path)
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8000
     val coreHomepage = System.getenv("CORE_HOMEPAGE")?.trim()?.takeIf { it.isNotEmpty() } ?: DEFAULT_CORE_HOMEPAGE
-    val checkForUpdates = System.getenv("CHECK_FOR_UPDATES").equals("true", ignoreCase = true)
     val dev = System.getenv("DEV").equals("true", ignoreCase = true)
+    val checkForUpdates = when (System.getenv("CHECK_FOR_UPDATES")?.trim()?.lowercase()) {
+        "true" -> true
+        "false" -> false
+        else -> !dev
+    }
 
     val http = UrlConnectionHttp()
     val installer = ModuleInstaller(http, JvmFileOps(), GithubReleases(http))
@@ -54,7 +58,7 @@ fun main() {
 
     if (coreJar == null || !coreJar.isFile) {
         System.err.println("No core module found.")
-        System.err.println("  Set CORE_JAR, or run with CHECK_FOR_UPDATES=true to install from $coreHomepage.")
+        System.err.println("  Set CORE_JAR, or let the launcher install the core from $coreHomepage.")
         return
     }
 
@@ -63,7 +67,7 @@ fun main() {
         ?: (if (dev) devFrontDir(coreJar) else null)
         ?: File(dataDir, "core/front")
 
-    val host = LauncherHost(dataDir, port, frontDir)
+    val host = LauncherHost(dataDir, port, frontDir, checkForUpdates = checkForUpdates)
 
     val devModules = if (dev) resolveDevModules(coreJar, System.getenv("DEV_MODULES")) else emptyList()
     var watcher: DevWatcher? = null
