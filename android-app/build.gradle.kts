@@ -79,19 +79,20 @@ val copyCahFront = tasks.register<Copy>("copyCahFront") {
 /**
  * Builds a dual-format plugin jar for Android: every non-class entry of the source jar plus a
  * `classes.dex` produced by d8. The same archive still works on desktop (URLClassLoader ignores the
- * dex; DexClassLoader ignores the class files).
+ * dex; DexClassLoader ignores the class files). Uses the newest jar in the module's `build/libs`, so
+ * a module version bump needs no changes here.
  */
-fun registerDexTask(name: String, sourcePath: String, outputName: String) =
+fun registerDexTask(name: String, sourceDirPath: String, outputName: String) =
     tasks.register(name) {
-        val source = file(sourcePath)
+        val sourceDir = file(sourceDirPath)
         val outputDir = generatedAssets.get().dir("plugins").asFile
         val output = File(outputDir, outputName)
-        inputs.file(source)
+        inputs.dir(sourceDir)
         outputs.file(output)
         doLast {
-            require(source.isFile) {
-                "Missing $source — build the module jar first (gradle -p ../../core :back:jar or -p ../../cah :back:jar)"
-            }
+            val source = sourceDir.listFiles { file -> file.isFile && file.extension == "jar" }
+                ?.maxByOrNull { it.lastModified() }
+                ?: error("Missing module jar in $sourceDir — build the module first (gradle -p ../../core :back:jar or -p ../../cah :back:jar)")
             outputDir.mkdirs()
             val dexDir = File(temporaryDir, "dex").apply { deleteRecursively(); mkdirs() }
             val command = listOf(
@@ -126,13 +127,13 @@ fun registerDexTask(name: String, sourcePath: String, outputName: String) =
 
 val dexCore = registerDexTask(
     name = "dexCore",
-    sourcePath = "../../core/back/build/libs/back-0.1.0.jar",
+    sourceDirPath = "../../core/back/build/libs",
     outputName = "core.jar"
 )
 
 val dexCah = registerDexTask(
     name = "dexCah",
-    sourcePath = "../../cah/back/build/libs/back-0.1.0.jar",
+    sourceDirPath = "../../cah/back/build/libs",
     outputName = "cah.jar"
 )
 

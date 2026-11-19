@@ -46,7 +46,10 @@ tasks.register<JavaExec>("devRun") {
     workingDir = rootProject.projectDir
     environment("DEV", "true")
     environment("DATA_DIR", System.getenv("DATA_DIR") ?: "build/dev-data")
-    environment("CORE_JAR", System.getenv("CORE_JAR") ?: "../core/back/build/libs/back-0.1.0.jar")
+    val coreJar = rootProject.file("../core/back/build/libs")
+        .listFiles { file -> file.isFile && file.extension == "jar" }
+        ?.maxByOrNull { it.lastModified() }
+    environment("CORE_JAR", System.getenv("CORE_JAR") ?: (coreJar?.absolutePath ?: "../core/back/build/libs/back.jar"))
     environment("PORT", System.getenv("PORT") ?: "8000")
     // IDEA cannot feed the Gradle daemon's stdin; pass -PlauncherCli to use :desktop:run from a terminal.
     environment("NO_CLI", if (project.hasProperty("launcherCli")) "0" else "1")
