@@ -33,6 +33,22 @@ tasks.named<JavaExec>("run") {
     workingDir = rootProject.projectDir
 }
 
+/** Development launcher: hot reload with a local data dir, no environment setup required. */
+tasks.register<JavaExec>("devRun") {
+    group = "application"
+    description = "Runs the launcher in development mode (DEV=true, DATA_DIR=build/dev-data)"
+    dependsOn(tasks.named("classes"))
+    mainClass.set("boardgame.launcher.desktop.MainKt")
+    classpath = sourceSets.main.get().runtimeClasspath
+    workingDir = rootProject.projectDir
+    environment("DEV", "true")
+    environment("DATA_DIR", System.getenv("DATA_DIR") ?: "build/dev-data")
+    environment("CORE_JAR", System.getenv("CORE_JAR") ?: "../core/back/build/libs/back-0.1.0.jar")
+    environment("PORT", System.getenv("PORT") ?: "8000")
+    // IDEA cannot feed the Gradle daemon's stdin; pass -PlauncherCli to use :desktop:run from a terminal.
+    environment("NO_CLI", if (project.hasProperty("launcherCli")) "0" else "1")
+}
+
 /**
  * Single executable jar: launcher + host + shared + API + runtime dependencies, service files merged.
  * Run with `java -jar boardgame-launcher-<version>.jar`.

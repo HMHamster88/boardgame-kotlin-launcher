@@ -98,9 +98,10 @@ How it works:
   reload keeps the previous core.
 
 IntelliJ IDEA: the repository ships shared run configurations in `.idea/runConfigurations`:
-**Launcher (dev)** (runs `MainKt` with `DEV=true`, `DATA_DIR=build/dev-data` and
-`CORE_JAR=../core/back/build/libs/back-0.1.0.jar`, working directory = launcher root) plus
-**Build core jar** / **Build CAH jar** for the rebuild → hot-reload loop.
+**Launcher (dev)** (Gradle task `:desktop:devRun`, which sets `DEV=true`, `DATA_DIR=build/dev-data`,
+`CORE_JAR=../core/back/build/libs/back-0.1.0.jar`, `PORT=8000` and `NO_CLI=1` with the launcher root
+as working directory) plus **Build core jar** / **Build CAH jar** for the rebuild → hot-reload loop.
+For the interactive CLI run `gradlew :desktop:devRun -PlauncherCli` in a terminal.
 
 
 ## Release packaging
