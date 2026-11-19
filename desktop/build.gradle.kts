@@ -28,6 +28,11 @@ application {
     applicationDefaultJvmArgs = listOf("-Dfile.encoding=UTF-8")
 }
 
+tasks.named<JavaExec>("run") {
+    // Resolve relative DEV / CORE_JAR / DATA_DIR paths from the launcher repository root.
+    workingDir = rootProject.projectDir
+}
+
 /**
  * Single executable jar: launcher + host + shared + API + runtime dependencies, service files merged.
  * Run with `java -jar boardgame-launcher-<version>.jar`.

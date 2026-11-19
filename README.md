@@ -97,6 +97,11 @@ How it works:
 - Watch logs start with `[dev]`. A failed sync (e.g. a build still writing the jar) retries; a failed
   reload keeps the previous core.
 
+IntelliJ IDEA: the repository ships shared run configurations in `.idea/runConfigurations`:
+**Launcher (dev)** (runs `MainKt` with `DEV=true`, `DATA_DIR=build/dev-data` and
+`CORE_JAR=../core/back/build/libs/back-0.1.0.jar`, working directory = launcher root) plus
+**Build core jar** / **Build CAH jar** for the rebuild → hot-reload loop.
+
 
 ## Release packaging
 

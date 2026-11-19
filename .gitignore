@@ -10,7 +10,8 @@ build/
 local.properties
 
 # IDE / OS
-.idea/
+.idea/*
+!.idea/runConfigurations/
 *.iml
 .DS_Store
 Thumbs.db

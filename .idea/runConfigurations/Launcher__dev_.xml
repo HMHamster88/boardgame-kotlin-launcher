@@ -1,0 +1,18 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Launcher (dev)" type="Application" factoryName="Application">
+    <envs>
+      <env name="CORE_JAR" value="../core/back/build/libs/back-0.1.0.jar" />
+      <env name="DATA_DIR" value="build/dev-data" />
+      <env name="DEV" value="true" />
+      <env name="PORT" value="8000" />
+    </envs>
+    <option name="MAIN_CLASS_NAME" value="boardgame.launcher.desktop.MainKt" />
+    <module name="boardgame-kotlin-launcher.desktop" />
+    <option name="PROGRAM_PARAMETERS" value="" />
+    <option name="VM_PARAMETERS" value="-Dfile.encoding=UTF-8" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
