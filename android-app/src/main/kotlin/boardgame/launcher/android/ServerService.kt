@@ -58,8 +58,17 @@ class ServerService : Service() {
                         callback(result)
                     }
                 }
-                AppConsole.println("[service] running on port $PORT")
-                updateNotification("Running on port $PORT")
+                val lanEndpoints = runCatching { launcher.lanEndpoints() }.getOrDefault(emptyList())
+                AppConsole.println("[service] running on http://127.0.0.1:$PORT")
+                if (lanEndpoints.isEmpty()) {
+                    AppConsole.println("[service] no external IPv4 interfaces found")
+                } else {
+                    lanEndpoints.forEach { endpoint ->
+                        AppConsole.println("[service] open ${endpoint.url} (${endpoint.interfaceName})")
+                    }
+                }
+                val lanUrl = lanEndpoints.firstOrNull()?.url
+                updateNotification(if (lanUrl != null) "Running on $lanUrl" else "Running on port $PORT")
             } catch (t: Throwable) {
                 AppConsole.println("[service] failed: ${t.message}")
                 updateNotification("Failed: ${t.message}")
