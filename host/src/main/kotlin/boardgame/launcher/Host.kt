@@ -49,6 +49,9 @@ import java.io.File
 import java.net.Inet4Address
 import java.net.NetworkInterface
 
+/** A reachable LAN URL together with the network interface it belongs to. */
+data class LanEndpoint(val interfaceName: String, val url: String)
+
 /**
  * Platform host: Ktor server, document store, plugin classloading and console.
  * Runs on the desktop launcher and inside the Android app; only the [PluginLoader] differs.
@@ -230,24 +233,34 @@ class LauncherHost(
         putJsonArray("lanUrls") { lanUrls(port).forEach { add(it) } }
     }
 
-    private fun lanUrls(port: Int): List<String> {
+    /**
+     * LAN endpoints the server can be reached on, with the owning interface name. Virtual adapters
+     * (Docker, WSL, VPN, Hyper-V, …) and non-private IPv4 addresses are skipped; the desktop console
+     * prints this list after startup.
+     */
+    fun lanEndpoints(port: Int = this.port): List<LanEndpoint> {
         val virtualMarkers = listOf(
             "virtual", "vbox", "vmware", "docker", "wsl", "hyper-v", "vethernet",
             "host-only", "tailscale", "vpn", "tun", "tap"
         )
-        val urls = mutableListOf<String>()
-        NetworkInterface.getNetworkInterfaces()?.toList()?.forEach { network ->
-            if (!network.isUp || network.isLoopback) return@forEach
-            val name = network.name.lowercase()
-            if (virtualMarkers.any { name.contains(it) }) return@forEach
-            network.inetAddresses.toList().forEach { address ->
-                if (address is Inet4Address && !address.isLoopbackAddress && isPrivate(address.hostAddress)) {
-                    urls += "http://${address.hostAddress}:$port"
+        val endpoints = mutableListOf<LanEndpoint>()
+        runCatching {
+            NetworkInterface.getNetworkInterfaces()?.toList()?.forEach { network ->
+                if (!network.isUp || network.isLoopback) return@forEach
+                val displayName = network.displayName?.takeIf { it.isNotBlank() } ?: network.name
+                val label = "${network.name} $displayName".lowercase()
+                if (virtualMarkers.any { label.contains(it) }) return@forEach
+                network.inetAddresses.toList().forEach { address ->
+                    if (address is Inet4Address && !address.isLoopbackAddress && isPrivate(address.hostAddress)) {
+                        endpoints += LanEndpoint(displayName, "http://${address.hostAddress}:$port")
+                    }
                 }
             }
         }
-        return urls.distinct().sorted()
+        return endpoints.distinctBy { it.url }.sortedBy { it.url }
     }
+
+    private fun lanUrls(port: Int): List<String> = lanEndpoints(port).map { it.url }
 
     private fun isPrivate(address: String): Boolean {
         val parts = address.split('.').mapNotNull { it.toIntOrNull() }

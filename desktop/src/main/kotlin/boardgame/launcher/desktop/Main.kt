@@ -79,6 +79,12 @@ fun main() {
     println("  data: $dataDir")
     println("  core: ${loadedCoreJar.absolutePath}${resolved?.let { " (${it.version})" } ?: ""}")
     println("  open: http://127.0.0.1:$port")
+    val lanEndpoints = host.lanEndpoints()
+    if (lanEndpoints.isEmpty()) {
+        println("        (no external IPv4 interfaces found)")
+    } else {
+        lanEndpoints.forEach { println("        ${it.url}  (${it.interfaceName})") }
+    }
 
     if (dev) {
         println("  dev: watching core jar and ${devModules.size} game module(s)")
