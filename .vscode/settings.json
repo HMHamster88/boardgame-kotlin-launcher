@@ -1,0 +1,17 @@
+{
+    "VsCodeTaskButtons.showCounter": true,
+    "VsCodeTaskButtons.tasks": [
+        {
+            "label": "$(play) Run dev",
+            "task": "Launcher: run dev",
+            "tooltip": "Start the launcher with hot reload (http://127.0.0.1:8000)",
+            "alignment": "left"
+        },
+        {
+            "label": "$(package) Release",
+            "task": "Launcher: release",
+            "tooltip": "Build the jar, desktop zip, Windows exe and APK",
+            "alignment": "right"
+        }
+    ]
+}
