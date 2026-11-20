@@ -34,7 +34,9 @@ Implemented:
   system-bar insets (Android 15 edge-to-edge). Bottom **Game** / **Console** tabs switch between the
   SPA and an in-app console that shows host/core logs (including the reachable LAN URLs) and runs the
   same commands as the desktop CLI (`help`, `game-modules list|add`, `users ...`). The Game tab has
-  Chrome-style pull-to-refresh when the page is scrolled to the top.
+  Chrome-style pull-to-refresh when the page is scrolled to the top. On startup the core checks for
+  newer game-module releases (Catan, Carcassonne, Ticket to Ride) and installs them; the bundled core
+  itself is updated by installing a newer APK.
 - `spike/` — the phase-1 plugin/dex/Ktor spike.
 
 Verified on API 37 emulator: core plugin + CAH module loaded from dex, SPA served inside the app,

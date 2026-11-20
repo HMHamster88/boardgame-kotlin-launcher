@@ -46,6 +46,7 @@ class ServerService : Service() {
                     port = PORT,
                     frontDir = File(dataDir, "core/front"),
                     pluginLoader = DexPluginLoader(applicationContext),
+                    checkForUpdates = true,
                     console = AppConsole
                 )
                 host = launcher
@@ -116,9 +117,16 @@ class ServerService : Service() {
     }
 
     private fun copyAsset(assetPath: String, target: File) {
-        if (target.isFile && target.length() > 0) return
+        val bytes = assets.open(assetPath).use { it.readBytes() }
+        if (target.isFile && target.length() == bytes.size.toLong() && target.readBytes().contentEquals(bytes)) {
+            return
+        }
         target.parentFile?.mkdirs()
-        assets.open(assetPath).use { input -> target.outputStream().use { input.copyTo(it) } }
+        // Plugin jars are marked read-only before loading; a replaced APK asset must be writable.
+        if (target.exists() && !target.canWrite()) {
+            check(target.setWritable(true)) { "Could not make ${target.name} writable" }
+        }
+        target.writeBytes(bytes)
     }
 
     private fun copyAssetTree(assetPath: String, target: File) {
