@@ -33,7 +33,8 @@ Implemented:
   with `DexClassLoader` (read-only mark). Serves the SPA on `127.0.0.1:8080`; WebView is padded by
   system-bar insets (Android 15 edge-to-edge). Bottom **Game** / **Console** tabs switch between the
   SPA and an in-app console that shows host/core logs (including the reachable LAN URLs) and runs the
-  same commands as the desktop CLI (`help`, `game-modules list|add`, `users ...`).
+  same commands as the desktop CLI (`help`, `game-modules list|add`, `users ...`). The Game tab has
+  Chrome-style pull-to-refresh when the page is scrolled to the top.
 - `spike/` — the phase-1 plugin/dex/Ktor spike.
 
 Verified on API 37 emulator: core plugin + CAH module loaded from dex, SPA served inside the app,

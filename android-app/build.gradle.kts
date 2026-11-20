@@ -79,6 +79,7 @@ dependencies {
     implementation(project(":shared"))
     implementation("com.hmhamster:boardgame-api:0.1.0")
     implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
 }
 

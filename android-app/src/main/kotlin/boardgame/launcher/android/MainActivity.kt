@@ -9,7 +9,10 @@ import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -21,6 +24,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -30,6 +34,7 @@ class MainActivity : Activity() {
 
     private lateinit var root: LinearLayout
     private lateinit var webView: WebView
+    private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var consoleView: LinearLayout
     private lateinit var consoleLog: TextView
     private lateinit var consoleScroll: ScrollView
@@ -56,12 +61,35 @@ class MainActivity : Activity() {
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = false
             setBackgroundColor(Color.WHITE)
+            webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    swipeRefresh.isRefreshing = false
+                }
+
+                override fun onReceivedError(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                    error: WebResourceError?
+                ) {
+                    super.onReceivedError(view, request, error)
+                    if (request?.isForMainFrame == true) swipeRefresh.isRefreshing = false
+                }
+            }
+        }
+
+        // Chrome-style pull-to-refresh: only starts when the page is scrolled to the very top.
+        swipeRefresh = SwipeRefreshLayout(this).apply {
+            setColorSchemeColors(accentColor)
+            setProgressBackgroundColorSchemeColor(Color.WHITE)
+            setOnRefreshListener { webView.reload() }
+            addView(webView, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         }
 
         val content = FrameLayout(this).apply {
             setBackgroundColor(Color.WHITE)
             addView(
-                webView,
+                swipeRefresh,
                 FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
