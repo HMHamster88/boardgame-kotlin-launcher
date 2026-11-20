@@ -142,6 +142,18 @@ IntelliJ IDEA: the shared **Build launcher desktop** (`desktopRelease`), **Build
 (`:desktop:desktopExeZip`) and **Build launcher android** (`androidRelease`) run configurations are
 in `.idea/runConfigurations`.
 
+## Publishing a release
+
+```bash
+gradle publishRelease                 # latest release
+gradle publishRelease -PghDraft=true  # draft for review
+```
+
+Runs `release`, pushes the local `v<version>` tag and creates the GitHub release with generated notes.
+The release assets are the executable jar, the desktop zip, the Windows app-image zip (Windows builds)
+and the APK. Requires `gh` installed/authenticated, a clean tree at the tagged commit, and an `origin`
+remote.
+
 The single jar is the quickest way to run a release (Java 11+):
 
 ```bash

@@ -113,6 +113,9 @@ val desktopExe = tasks.register<Exec>("desktopExe") {
     val dest = rootProject.layout.buildDirectory.dir("appimage").get().asFile
     val appVersion = project.version.toString().substringBefore('-')
         .takeIf { Regex("\\d+(\\.\\d+){1,3}").matches(it) } ?: "1.0.0"
+    // The staged launcher jar is not a declared dependency input by default; without this a rebuilt
+    // jar left the previously packaged Boardgames.exe in place.
+    inputs.dir(jpackageInput)
     outputs.dir(File(dest, "Boardgames"))
     doFirst { File(dest, "Boardgames").deleteRecursively() }
 
